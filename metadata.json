@@ -1,0 +1,6 @@
+{
+  "name": "BOQ BOM Forensic Audit Portal",
+  "description": "A high-fidelity comparative audit portal for vendor-agnostic Bill of Quantities (BOQ) and Bill of Materials (BOM) reconciliation and simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
