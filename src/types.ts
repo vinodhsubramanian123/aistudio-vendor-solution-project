@@ -88,6 +88,9 @@ export interface CatalogItem {
   isSovereign?: boolean;
   MaxQty?: number;
   Attributes?: Record<string, string | number | boolean>;
+  Vendor?: string;
+  SolutionFamily?: string;
+  Generation?: string;
 }
 
 export interface MissionLog {

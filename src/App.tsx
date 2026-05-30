@@ -19,7 +19,7 @@ import {
   generateCatalog,
   DEMO_AUDIT_LOGS
 } from './data';
-import { Layers, ShieldCheck, CornerDownRight, CheckCircle2, AlertTriangle, Play } from 'lucide-react';
+import { Layers, ShieldCheck, CornerDownRight, CheckCircle2, AlertTriangle, Play, X, Terminal } from 'lucide-react';
 
 export default function App() {
   // Query parameters state
@@ -421,17 +421,40 @@ export default function App() {
         )}
       </main>
 
-      {/* Interactive terminal and mission launchers */}
+      {/* Interactive terminal and mission launchers modal overlay */}
       {isTerminalOpen && (
-        <div className="max-w-7xl mx-auto px-6 py-4 animate-scale-up">
-          <MissionControl
-            onEmitUCID={(newUcid) => {
-              setConfigIdPrefix(newUcid);
-              setPulseTab(newUcid);
-              // Force rows status to success simulated
-              setRows(prev => prev.map(r => ({ ...r, status: 'MATCHED', drift: 0 })));
-            }}
-          />
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700/50 w-full max-w-7xl rounded-3xl p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col gap-4 text-left">
+            {/* Close button */}
+            <button
+              onClick={() => setIsTerminalOpen(false)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-white cursor-pointer p-2 rounded-lg hover:bg-white/10 transition-colors z-50"
+              title="Close Audit Console"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="pr-12 text-left">
+              <h2 className="text-md font-bold text-white flex items-center gap-2 uppercase tracking-wide">
+                <Terminal className="w-5 h-5 text-indigo-400" />
+                <span>Audit Console & Intelligent Agent HUD</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Configure orchestrator loops, witness diagnostic self-healing trace sequences, policy restriction gates, and multi-tenant live configuration pipelines.
+              </p>
+            </div>
+
+            <div className="flex-1 min-h-0">
+              <MissionControl
+                onEmitUCID={(newUcid) => {
+                  setConfigIdPrefix(newUcid);
+                  setPulseTab(newUcid);
+                  // Force rows status to success simulated
+                  setRows(prev => prev.map(r => ({ ...r, status: 'MATCHED', drift: 0 })));
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 

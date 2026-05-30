@@ -394,14 +394,51 @@ export const generateCatalog = (): CatalogItem[] => {
     const padNeeded = targetCount - currentCount;
     for (let i = 0; i < padNeeded; i++) {
       generatedId++;
+      
+      const modelIndex = i % 4; // 0=HPE DL380 Gen12, 1=HPE DL385 Gen11, 2=HPE DL380a Gen11, 3=DELL PE R760 16G
+      let platforms = 'DL380_G12';
+      let vendor = 'HPE';
+      let generation = 'Gen12';
+      let solFamily = 'DL380';
+      let desc = '';
+
+      if (modelIndex === 0) {
+        platforms = 'DL380_G12';
+        vendor = 'HPE';
+        generation = 'Gen12';
+        solFamily = 'DL380';
+        desc = `HPE ProLiant DL380 Gen12 Standard option for ${catName} Part ${i + 1}`;
+      } else if (modelIndex === 1) {
+        platforms = 'DL385_G11';
+        vendor = 'HPE';
+        generation = 'Gen11';
+        solFamily = 'DL385';
+        desc = `HPE ProLiant DL385 Gen11 AMD optimized option for ${catName} Part ${i + 1}`;
+      } else if (modelIndex === 2) {
+        platforms = 'DL380a_G11';
+        vendor = 'HPE';
+        generation = 'Gen11';
+        solFamily = 'DL380a';
+        desc = `HPE ProLiant DL380a Gen11 Accelerator/GPU Node option for ${catName} Part ${i + 1}`;
+      } else {
+        platforms = 'PE_R760_16G';
+        vendor = 'DELL';
+        generation = '16G';
+        solFamily = 'PE_R760';
+        desc = `Dell PowerEdge R760 16G Enterprise option for ${catName} Part ${i + 1}`;
+      }
+
       items.push({
-        SKU: `P${generatedId}-B21`,
-        Description: `HPE ProLiant Compiled Spec Option for ${catName} Part ${i + 1}`,
+        SKU: vendor === 'HPE' ? `P${generatedId}-B21` : `D${generatedId}-B21`,
+        Description: desc,
         Category: catName as HardwareCategory,
-        MSRP: i % 3 === 0 ? 120 * i : 0,
-        Platforms: 'DL380_G12, DL385_G11',
+        MSRP: i % 3 === 0 ? 120 * i : 180,
+        Platforms: platforms,
         isTAA: i % 5 !== 0,
-        isSovereign: i % 10 === 0
+        isSovereign: i % 10 === 0,
+        Vendor: vendor,
+        SolutionFamily: solFamily,
+        Generation: generation
       });
     }
   });
@@ -411,19 +448,67 @@ export const generateCatalog = (): CatalogItem[] => {
     generatedId++;
     items.push({
       SKU: `P${generatedId}-B21`,
-      Description: `HPE ProLiant Compiled Spec Option Universal Base Node`,
+      Description: `HPE ProLiant DL380 Gen12 Compiled Spec Option Universal Base Node`,
       Category: 'UNKNOWN',
-      MSRP: 0,
+      MSRP: 250,
       Platforms: 'DL380_G12',
-      isTAA: true
+      isTAA: true,
+      Vendor: 'HPE',
+      SolutionFamily: 'DL380',
+      Generation: 'Gen12'
     });
   }
+
+  // Also smart-tag any hardcoded base catalog elements in the final dataset
+  const parsed = items.map(item => {
+    if (item.Vendor && item.SolutionFamily && item.Generation) {
+      return item;
+    }
+    // Parse base items
+    let vendor = 'HPE';
+    let generation = 'Gen11';
+    let solFamily = 'DL380';
+
+    const skuLower = item.SKU.toLowerCase();
+    const descLower = item.Description.toLowerCase();
+    const platLower = item.Platforms.toLowerCase();
+
+    if (descLower.includes('dell') || skuLower.includes('boss') || platLower.includes('poweredge')) {
+      vendor = 'DELL';
+      generation = '16G';
+      solFamily = 'PE_R760';
+    } else if (item.isSovereign || descLower.includes('alletra')) {
+      vendor = 'SOVEREIGN_CO';
+      generation = 'Gen11';
+      solFamily = 'Alletra4110';
+    }
+
+    if (descLower.includes('dl385') || platLower.includes('dl385')) {
+      solFamily = 'DL385';
+      generation = 'Gen11';
+    } else if (descLower.includes('dl380a')) {
+      solFamily = 'DL380a';
+      generation = 'Gen12';
+    } else if (descLower.includes('dl380') && (descLower.includes('g12') || descLower.includes('gen12') || platLower.includes('g12'))) {
+      solFamily = 'DL380';
+      generation = 'Gen12';
+    } else if (descLower.includes('gen11') || descLower.includes('g11')) {
+      generation = 'Gen11';
+    }
+
+    return {
+      ...item,
+      Vendor: vendor,
+      Generation: generation,
+      SolutionFamily: solFamily
+    };
+  });
   
-  if (items.length > 712) {
-    return items.slice(0, 712);
+  if (parsed.length > 712) {
+    return parsed.slice(0, 712);
   }
 
-  return items;
+  return parsed;
 };
 
 // ==========================================
