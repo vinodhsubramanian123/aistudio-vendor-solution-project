@@ -28,7 +28,7 @@ export default function App() {
   const startGradPlatform = params.get('grad') || '';
 
   // Workspace configuration states
-  const [activeTab, setActiveTab] = useState<string>('ALPHA-888');
+  const [activeTab, setActiveTab] = useState<string>('GLOBAL');
   const [viewMode, setViewMode] = useState<'pipeline' | 'table' | 'tree' | 'physical' | 'reconcile' | 'catalog'>('pipeline');
   const [filterText, setFilterText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -42,7 +42,7 @@ export default function App() {
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(generateCatalog());
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(DEMO_AUDIT_LOGS);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Simulated notifications
   const [pulseTab, setPulseTab] = useState<string | undefined>(undefined);
@@ -115,6 +115,16 @@ export default function App() {
     if (pulseTab === tabId) {
       setPulseTab(undefined);
     }
+    // Auto-adjust view mode when migrating between different tabs
+    if (tabId === 'GLOBAL') {
+      if (viewMode === 'tree' || viewMode === 'physical') {
+        setViewMode('table');
+      }
+    } else {
+      if (viewMode === 'pipeline' || viewMode === 'reconcile') {
+        setViewMode('table');
+      }
+    }
   };
 
   // Upload/seed trigger helper
@@ -150,6 +160,66 @@ export default function App() {
     }, 3000);
   };
 
+  // Interactive compliance self-healing actions
+  const handleUpgradePSU = (configName: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.config === configName && r.category === 'POWER') {
+        const itemPrice = configName === 'DELL-PRO-25' ? 490 : 550;
+        return {
+          ...r,
+          part: configName === 'DELL-PRO-25' ? 'DELL-1100W-PSU' : '1600W-PSU',
+          bomQty: 2,
+          boqQty: 2,
+          status: 'MATCHED' as RowStatus,
+          drift: 0,
+          bomDesc: configName === 'DELL-PRO-25' ? 'Dell 1100W Titanium Redundant Power Supply' : 'HPE 1600W Flex Slot Titanium Power Supply Unit',
+          price: itemPrice,
+          reasoning: 'Healed: Upgraded to Titanium power redundancy to support compute thermal loads.'
+        };
+      }
+      return r;
+    }));
+    setCopiedText(`Compliance Healed: Successfully upgraded ${configName} to high-output Redundant Titanium PSUs!`);
+    setTimeout(() => setCopiedText(null), 3500);
+  };
+
+  const handleRebalanceRDIMMs = (configName: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.config === configName && r.category === 'MEMORY') {
+        return {
+          ...r,
+          bomQty: 24,
+          boqQty: 24,
+          status: 'MATCHED' as RowStatus,
+          drift: 0,
+          reasoning: 'Healed: Memory DDR5 population rebalanced to 24 slots (12 slots per CPU) for dual processors parity.'
+        };
+      }
+      return r;
+    }));
+    setCopiedText(`Compliance Healed: Rebalanced DDR5 Memory Modules population to 24 slots!`);
+    setTimeout(() => setCopiedText(null), 3550);
+  };
+
+  const handleAddChassis = (configName: string) => {
+    setRows(prev => prev.map(r => {
+      if (r.config === configName && r.category === 'CHASSIS') {
+        return {
+          ...r,
+          bomQty: 1,
+          boqQty: 1,
+          status: 'MATCHED' as RowStatus,
+          drift: 0,
+          bomDesc: configName === 'DELL-PRO-25' ? 'Dell PowerEdge R760 16G Chassis' : 'HPE ProLiant DL385 Gen11 10DW Enclosure Frame',
+          reasoning: 'Healed: Ingested and synchronized missing manufacturer physical enclosure reference.'
+        };
+      }
+      return r;
+    }));
+    setCopiedText(`Compliance Healed: Added official manufacturer chassis reference frame to quote payload!`);
+    setTimeout(() => setCopiedText(null), 3550);
+  };
+
   // Re-comparisons/hot refresh
   const handleResetWorkspace = () => {
     setRows([]);
@@ -167,14 +237,20 @@ export default function App() {
   const technicalDrift = activeRows.reduce((acc, r) => acc + r.drift, 0);
 
   // Render perspectives view toggles mapped directly to client selections
-  const viewModesMap = [
-    { id: 'pipeline', label: '⚡ Deal Lifecycle & Snapshots', testId: 'view-mode-pipeline' },
-    { id: 'table', label: '📊 Specs Comparison', testId: 'view-mode-table' },
-    { id: 'tree', label: 'Logical Tree', testId: 'view-mode-tree' },
-    { id: 'physical', label: '🔌 3D Physical Chassis', testId: 'view-mode-physical' },
-    { id: 'reconcile', label: '⚖️ Reconciliation', testId: 'view-mode-reconcile' },
-    { id: 'catalog', label: '🗄️ Universal Ingress & Catalog', testId: 'view-mode-catalog' }
-  ];
+  const viewModesMap = activeTab === 'GLOBAL' 
+    ? [
+        { id: 'pipeline', label: '📥 BOQ Ingestion & Portal Invoicing', testId: 'view-mode-pipeline' },
+        { id: 'table', label: '📊 All Combined Specs Table', testId: 'view-mode-table' },
+        { id: 'reconcile', label: '⚖️ Substitute & Pricing Advisor', testId: 'view-mode-reconcile' },
+        { id: 'catalog', label: '🗄️ Materials SKU Database', testId: 'view-mode-catalog' }
+      ]
+    : [
+        { id: 'table', label: '📊 Isolated Specs Check', testId: 'view-mode-table' },
+        { id: 'tree', label: '🔌 Internal Components Slots List', testId: 'view-mode-tree' },
+        { id: 'physical', label: '🖥️ Physical Front/Back Chassis', testId: 'view-mode-physical' },
+        { id: 'reconcile', label: '🛡️ Compliance & Validation Check', testId: 'view-mode-reconcile' },
+        { id: 'catalog', label: '🗄️ Materials SKU Database', testId: 'view-mode-catalog' }
+      ];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col relative antialiased transition-colors duration-500 selection:bg-indigo-500/10 selection:text-indigo-800 pb-12">
@@ -295,7 +371,12 @@ export default function App() {
         )}
 
         {viewMode === 'tree' && (
-          <LogicalTreeView rows={rows} onSolveGhost={handleSolveGhost} />
+          <LogicalTreeView
+            rows={rows}
+            onSolveGhost={handleSolveGhost}
+            activeTab={activeTab}
+            platformName={platformContext}
+          />
         )}
 
         {viewMode === 'physical' && (
@@ -303,117 +384,265 @@ export default function App() {
         )}
 
         {viewMode === 'reconcile' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
-            {/* Left side Columns: Reconcile Matrix Solutions */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <span className="text-[10px] font-mono font-bold text-slate-550 uppercase tracking-widest leading-none">
-                Reconciliation Solutions Matrix
-              </span>
+          activeTab === 'GLOBAL' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
+              {/* Left side Columns: Reconcile Matrix Solutions */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                <span className="text-[10px] font-mono font-bold text-slate-550 uppercase tracking-widest leading-none">
+                  Reconciliation Solutions Matrix
+                </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Solution A card */}
-                <div
-                  data-testid="reconcile-solution-col"
-                  className="bg-white border border-slate-200 border-l-4 border-l-indigo-600 p-5 rounded-r-xl flex flex-col gap-3 shadow-sm"
-                >
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-xs uppercase font-mono">OPTION A (Intel Xeon Balanced)</h4>
-                      <span className="text-[10px] text-slate-500 mt-0.5 block">Recommended baseline deployment</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Solution A card */}
+                  <div
+                    data-testid="reconcile-solution-col"
+                    className="bg-white border border-slate-200 border-l-4 border-l-indigo-600 p-5 rounded-r-xl flex flex-col gap-3 shadow-sm"
+                  >
+                    <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs uppercase font-mono">OPTION A (Intel Xeon Balanced)</h4>
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">Recommended baseline deployment</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-indigo-650">$29,650</span>
                     </div>
-                    <span className="text-xs font-mono font-bold text-indigo-650">$29,650</span>
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      This solution solves socket balance restrictions perfectly, enforcing optimal channel population using Sapphire Rapids standard RDIMMs.
+                    </p>
+                    <div className="font-mono text-[10px] text-slate-500 flex flex-col gap-1">
+                      <div className="flex justify-between border-b border-slate-50 pb-1">
+                        <span>MSRP Tech-drift matching:</span>
+                        <span className="text-slate-705 font-bold">$0 (Neutral)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>C19 power cords verified:</span>
+                        <span className="text-emerald-600 font-bold">YES</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-600 leading-normal">
-                    This solution solves socket balance restrictions perfectly, enforcing optimal channel population using Sapphire Rapids standard RDIMMs.
-                  </p>
-                  <div className="font-mono text-[10px] text-slate-500 flex flex-col gap-1">
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span>MSRP Tech-drift matching:</span>
-                      <span className="text-slate-705 font-bold">$0 (Neutral)</span>
+
+                  {/* Solution B card */}
+                  <div
+                    data-testid="reconcile-solution-col"
+                    className="bg-white border border-slate-200 border-l-4 border-l-cyan-600 p-5 rounded-r-xl flex flex-col gap-3 shadow-sm"
+                  >
+                    <div className="flex justify-between items-start border-b border-slate-100 pb-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-xs uppercase font-mono">OPTION B (AMD EPYC High-Density)</h4>
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">Minimalist cost allocation layout</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-indigo-650">$24,300</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>C19 power cords verified:</span>
-                      <span className="text-emerald-600 font-bold">YES</span>
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      Designed for maximum energy efficiency with Genoa single-socket processors, bypassing dual-socket multiplier overheads.
+                    </p>
+                    <div className="font-mono text-[10px] text-slate-500 flex flex-col gap-1">
+                      <div className="flex justify-between border-b border-slate-50 pb-1">
+                        <span>MSRP Tech-drift matching:</span>
+                        <span className="text-amber-600 font-bold">+$1,500</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>C19 power cords verified:</span>
+                        <span className="text-slate-500 font-bold">NOT REQUIRED</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Solution B card */}
+                {/* Master Build logic */}
                 <div
-                  data-testid="reconcile-solution-col"
-                  className="bg-white border border-slate-200 border-l-4 border-l-cyan-600 p-5 rounded-r-xl flex flex-col gap-3 shadow-sm"
+                  data-testid="master-build-logic"
+                  className="bg-slate-50 border border-slate-200 p-5 rounded-2xl shadow-sm"
                 >
-                  <div className="flex justify-between items-start border-b border-slate-100 pb-2">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-xs uppercase font-mono">OPTION B (AMD EPYC High-Density)</h4>
-                      <span className="text-[10px] text-slate-500 mt-0.5 block">Minimalist cost allocation layout</span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-indigo-650">$24,300</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 leading-normal">
-                    Designed for maximum energy efficiency with Genoa single-socket processors, bypassing dual-socket multiplier overheads.
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">Synthesis Engine Strategy</h3>
+                  <p className="text-[11px] text-slate-600 mt-1 lines-normal">
+                    The comparative audit siphons unused or extra memory kits from collateral nodes and applies **Substitution Density Bonding** automatically on compilation.
                   </p>
-                  <div className="font-mono text-[10px] text-slate-500 flex flex-col gap-1">
-                    <div className="flex justify-between border-b border-slate-50 pb-1">
-                      <span>MSRP Tech-drift matching:</span>
-                      <span className="text-amber-600 font-bold">+$1,500</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>C19 power cords verified:</span>
-                      <span className="text-slate-500 font-bold">NOT REQUIRED</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Master Build logic */}
-              <div
-                data-testid="master-build-logic"
-                className="bg-slate-50 border border-slate-200 p-5 rounded-2xl shadow-sm"
-              >
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">Synthesis Engine Strategy</h3>
-                <p className="text-[11px] text-slate-600 mt-1 lines-normal">
-                  The comparative audit siphons unused or extra memory kits from collateral nodes and applies **Substitution Density Bonding** automatically on compilation.
-                </p>
-              </div>
-            </div>
+              {/* Right side Columns: drift accounting block */}
+              <div className="flex flex-col gap-4">
+                <span className="text-[10px] font-mono font-black text-slate-550 uppercase tracking-widest leading-none">
+                  Drift Valuation Panel
+                </span>
 
-            {/* Right side Columns: drift accounting block */}
-            <div className="flex flex-col gap-4">
-              <span className="text-[10px] font-mono font-black text-slate-550 uppercase tracking-widest leading-none">
-                Drift Valuation Panel
-              </span>
-
-              <div
-                data-testid="drift-valuation"
-                className="border border-slate-200 p-5 rounded-2xl bg-white flex flex-col gap-3 relative shadow-sm"
-              >
-                <div className="text-[11px] font-mono font-bold text-indigo-600 uppercase">Valuation Ledger</div>
-                <h3 className="text-xl font-bold text-slate-900 font-mono tracking-snug">$29,650 Total</h3>
-                
-                <div className="h-px bg-slate-100 my-1" />
-                
-                <div className="flex flex-col gap-2 font-mono text-[10px] leading-tight text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Base chassis allocation value:</span>
-                    <span className="text-slate-700 font-medium">$12,500</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Processors power matching:</span>
-                    <span className="text-slate-700 font-medium">$8,000</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>RDIMMs density drift:</span>
-                    <span className="text-slate-700 font-medium">$6,500</span>
-                  </div>
-                  <div className="flex justify-between border-t border-slate-100 pt-2 mt-1.5 font-bold text-amber-600">
-                    <span>Active Technical Drift:</span>
-                    <span>+$700</span>
+                <div
+                  data-testid="drift-valuation"
+                  className="border border-slate-200 p-5 rounded-2xl bg-white flex flex-col gap-3 relative shadow-sm"
+                >
+                  <div className="text-[11px] font-mono font-bold text-indigo-600 uppercase">Valuation Ledger</div>
+                  <h3 className="text-xl font-bold text-slate-900 font-mono tracking-snug">${cumulativeValue.toLocaleString()} Total</h3>
+                  
+                  <div className="h-px bg-slate-100 my-1" />
+                  
+                  <div className="flex flex-col gap-2 font-mono text-[10px] leading-tight text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Base chassis allocation value:</span>
+                      <span className="text-slate-700 font-medium">$12,500</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Processors power matching:</span>
+                      <span className="text-slate-700 font-medium">$8,000</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-amber-600 border-t border-slate-100 pt-2 mt-1.5">
+                      <span>Active Technical Drift:</span>
+                      <span>{technicalDrift !== 0 ? `+$${technicalDrift.toLocaleString()}` : '$0'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left animate-fade-in">
+              {/* Compliance checks checklist list */}
+              <div className="lg:col-span-2 flex flex-col gap-5">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
+                    Hardware Invariant Checks For Config setup
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Automated system verification rule checkers comparing BOQ intents directly to portal specification constraints.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {/* Dynamic Rule 1: Enclosure verification */}
+                  {(() => {
+                    const chassisRow = activeRows.find(r => r.category === 'CHASSIS');
+                    const hasChassis = chassisRow && chassisRow.bomQty > 0;
+                    return (
+                      <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-sm ${
+                        hasChassis ? 'border-emerald-200 bg-emerald-50/20' : 'border-amber-200 bg-amber-50/20'
+                      }`}>
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg mt-0.5">{hasChassis ? '✅' : '⚠️'}</span>
+                          <div>
+                            <div className="font-bold text-xs text-slate-900 uppercase font-mono">Chassis Enclosure Validation</div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-normal max-w-md">
+                              {hasChassis 
+                                ? `Validated: Physical reference enclosure ${chassisRow.part} verified on manufacturer quote.` 
+                                : 'Mismatched: This config lacks an official physical chassis model matching your specifications in the quote packet!'}
+                            </p>
+                          </div>
+                        </div>
+                        {!hasChassis && (
+                          <button
+                            onClick={() => handleAddChassis(activeTab)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shrink-0 transition-colors shadow-xs cursor-pointer"
+                          >
+                            Add reference Chassis
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Dynamic Rule 2: Memory Balance populator check */}
+                  {(() => {
+                    const memoryRow = activeRows.find(r => r.category === 'MEMORY');
+                    const isBalanced = memoryRow && memoryRow.bomQty === 24;
+                    const hasMemory = !!memoryRow;
+                    return (
+                      <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-sm ${
+                        !hasMemory ? 'border-zinc-200 bg-zinc-50/40' : isBalanced ? 'border-emerald-200 bg-emerald-50/20' : 'border-amber-200 bg-amber-50/20'
+                      }`}>
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg mt-0.5">{!hasMemory ? '⚪' : isBalanced ? '✅' : '💡'}</span>
+                          <div>
+                            <div className="font-bold text-xs text-slate-900 uppercase font-mono">DDR5 Population Parity Check</div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-normal max-w-md">
+                              {!hasMemory 
+                                ? 'No memory modules detected in this configuration setup.' 
+                                : isBalanced 
+                                ? 'Optimized: 24 DIMMs mapped perfectly offering 1DPC balanced socket saturation per CPU channels.' 
+                                : `Sub-optimal:Mismatched memory populate detected. Currently mapped: ${memoryRow.bomQty} DIMMs. Balanced HPE/Dell 1DPC architecture requires 12 slots per CPU (24 slots total).`}
+                            </p>
+                          </div>
+                        </div>
+                        {hasMemory && !isBalanced && (
+                          <button
+                            onClick={() => handleRebalanceRDIMMs(activeTab)}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shrink-0 transition-colors shadow-xs cursor-pointer"
+                          >
+                            Populate 24 DIMMs
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Dynamic Rule 3: Power Wattage check */}
+                  {(() => {
+                    const psuRow = activeRows.find(r => r.category === 'POWER');
+                    const hasTitanium = psuRow && (psuRow.part.includes('1100W') || psuRow.part.includes('1600W'));
+                    const hasPsu = !!psuRow;
+                    return (
+                      <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-sm ${
+                        !hasPsu ? 'border-zinc-200 bg-zinc-50/40' : hasTitanium ? 'border-emerald-200 bg-emerald-50/20' : 'border-rose-200 bg-rose-50/20'
+                      }`}>
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg mt-0.5">{!hasPsu ? '⚪' : hasTitanium ? '✅' : '🚨'}</span>
+                          <div>
+                            <div className="font-bold text-xs text-slate-900 uppercase font-mono">Wattage & Thermal Envelope check</div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 leading-normal max-w-md">
+                              {!hasPsu 
+                                ? 'No redundant power supply configurations detected.' 
+                                : hasTitanium 
+                                ? `Healthy power system: ${psuRow.bomDesc} verified for heavy workload spikes.` 
+                                : `Critical Wattage Alarm: 800W PSU will encounter power trip warnings under peak 360W dual processors. upgraded titanium redundant setup required.`}
+                            </p>
+                          </div>
+                        </div>
+                        {hasPsu && !hasTitanium && (
+                          <button
+                            onClick={() => handleUpgradePSU(activeTab)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg shrink-0 transition-colors shadow-xs cursor-pointer"
+                          >
+                            Upgrade to Titanium PSUs
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Sidebar status statistics summary inside the environment */}
+              <div className="flex flex-col gap-4">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest leading-none">
+                  Validation Status summary
+                </span>
+
+                <div className="border border-slate-200 bg-white p-5 rounded-xl shadow-sm flex flex-col gap-4 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                    <span className="text-xs font-mono font-black text-slate-700 uppercase">Interactive Advisor HUD</span>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg font-mono text-[10px] text-slate-600 flex flex-col gap-2">
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span>Active Config ID:</span>
+                      <span className="font-bold text-slate-800">{activeTab}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span>Total Quote Items:</span>
+                      <span className="font-bold text-slate-800">{activeRows.length} units</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-1">
+                      <span>Technical Drift:</span>
+                      <span className={`font-bold ${technicalDrift !== 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {technicalDrift !== 0 ? `+$${technicalDrift.toLocaleString()}` : '$0 (Neutral)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    This interactive space maps hardware policies on-the-fly. Running solutions resolves cost discrepancies perfectly.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
         )}
 
         {viewMode === 'catalog' && (

@@ -43,13 +43,35 @@ export default function ComparisonTable({
   const [showManualForm, setShowManualForm] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(true); // default open for high visibility!
 
+  // Compute the robust rows subset that respects the active Tab and user queries
+  const visibleRows = React.useMemo(() => {
+    if (showAdvancedFilters) {
+      return advancedFilteredRows;
+    }
+    return rows.filter(row => {
+      // 1. Config Active Tab Lock
+      if (activeTab !== 'GLOBAL' && row.config !== activeTab) {
+        return false;
+      }
+      // 2. Simple Category filter
+      if (selectedCategory !== 'ALL') {
+        if (selectedCategory === 'STORAGE') {
+          if (row.category !== 'STORAGE_DRIVE' && row.category !== 'NVME_DRIVE') return false;
+        } else if (row.category !== selectedCategory) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, activeTab, selectedCategory, showAdvancedFilters, advancedFilteredRows]);
+
   // Sorter / categories available for tab filters
   const categories: { label: string; count: number }[] = [
-    { label: 'ALL', count: rows.length },
-    { label: 'CHASSIS', count: rows.filter(r => r.category === 'CHASSIS').length },
-    { label: 'PROCESSOR', count: rows.filter(r => r.category === 'PROCESSOR').length },
-    { label: 'MEMORY', count: rows.filter(r => r.category === 'MEMORY').length },
-    { label: 'STORAGE', count: rows.filter(r => r.category === 'STORAGE_DRIVE' || r.category === 'NVME_DRIVE').length }
+    { label: 'ALL', count: rows.filter(r => activeTab === 'GLOBAL' || r.config === activeTab).length },
+    { label: 'CHASSIS', count: rows.filter(r => (activeTab === 'GLOBAL' || r.config === activeTab) && r.category === 'CHASSIS').length },
+    { label: 'PROCESSOR', count: rows.filter(r => (activeTab === 'GLOBAL' || r.config === activeTab) && r.category === 'PROCESSOR').length },
+    { label: 'MEMORY', count: rows.filter(r => (activeTab === 'GLOBAL' || r.config === activeTab) && r.category === 'MEMORY').length },
+    { label: 'STORAGE', count: rows.filter(r => (activeTab === 'GLOBAL' || r.config === activeTab) && (r.category === 'STORAGE_DRIVE' || r.category === 'NVME_DRIVE')).length }
   ];
 
   // Filters state helper
@@ -82,10 +104,10 @@ export default function ComparisonTable({
   };
 
   const handleToggleSelectAll = () => {
-    if (selectedRows.size === advancedFilteredRows.length) {
+    if (selectedRows.size === visibleRows.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(advancedFilteredRows.map(r => r.id)));
+      setSelectedRows(new Set(visibleRows.map(r => r.id)));
     }
   };
 
@@ -566,7 +588,7 @@ export default function ComparisonTable({
               <div>
                 <input
                   type="checkbox"
-                  checked={selectedRows.size === advancedFilteredRows.length && advancedFilteredRows.length > 0}
+                  checked={selectedRows.size === visibleRows.length && visibleRows.length > 0}
                   onChange={handleToggleSelectAll}
                   className="rounded border-slate-300 bg-white text-indigo-600 focus:ring-0 w-4 h-4 cursor-pointer"
                 />
@@ -585,7 +607,7 @@ export default function ComparisonTable({
 
             {/* List Body Rows */}
             <div className="divide-y divide-slate-200 max-h-[500px] overflow-y-auto custom-scrollbar bg-white">
-              {advancedFilteredRows.length === 0 ? (
+              {visibleRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center text-slate-400 gap-3">
                   <HelpCircle className="w-12 h-12 text-slate-450 animate-pulse" />
                   <div>
@@ -596,7 +618,7 @@ export default function ComparisonTable({
                   </div>
                 </div>
               ) : (
-                advancedFilteredRows.map((row, index) => {
+                visibleRows.map((row, index) => {
                   const isEven = index % 2 === 0;
                   const isSelected = selectedRows.has(row.id);
                   const isQtyEditingBOQ = editingQtyId?.id === row.id && editingQtyId?.side === 'boq';
@@ -621,12 +643,12 @@ export default function ComparisonTable({
                       </div>
 
                       {/* 2. BOQ Intent */}
-                      <div className="font-medium text-slate-300 hover:text-white transition-colors truncate pr-4">
+                      <div className="font-semibold text-slate-800 hover:text-indigo-900 transition-colors truncate pr-4">
                         {row.boqDesc}
                       </div>
 
                       {/* 3. BOQ Qty count click editing */}
-                      <div className="text-center font-mono text-slate-200">
+                      <div className="text-center font-mono text-slate-700">
                         {isQtyEditingBOQ ? (
                           <div className="flex items-center justify-center gap-1">
                             <input
@@ -636,27 +658,27 @@ export default function ComparisonTable({
                               onBlur={handleSaveEditQty}
                               onKeyDown={e => e.key === 'Enter' && handleSaveEditQty()}
                               autoFocus
-                              className="w-10 bg-slate-950 border border-indigo-500 rounded text-center text-xs py-0.5 text-white"
+                              className="w-10 bg-white border border-indigo-500 rounded text-center text-xs py-0.5 text-slate-900"
                             />
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center group-hover/row:flex">
+                          <div className="flex items-center justify-center">
                             <button
                               onClick={() => handleDecrementQty(row.id, 'boq')}
-                              className="px-1 text-slate-500 hover:text-white cursor-pointer"
+                              className="px-1 text-slate-400 hover:text-slate-800 cursor-pointer text-xs font-bold"
                             >
                               -
                             </button>
                             <span
                               onClick={() => handleStartEditQty(row.id, 'boq', row.boqQty)}
-                              className="px-2 font-bold cursor-text hover:bg-slate-800 rounded min-w-4 inline-block"
+                              className="px-2 py-0.5 font-bold font-mono text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded min-w-[28px] inline-block cursor-text text-center text-[11px]"
                               title="Click to edit raw quantity"
                             >
                               {row.boqQty}
                             </span>
                             <button
                               onClick={() => handleIncrementQty(row.id, 'boq')}
-                              className="px-1 text-slate-500 hover:text-white cursor-pointer"
+                              className="px-1 text-slate-400 hover:text-slate-800 cursor-pointer text-xs font-bold"
                             >
                               +
                             </button>
@@ -665,7 +687,7 @@ export default function ComparisonTable({
                       </div>
 
                       {/* 4. BOM Qty count click editing */}
-                      <div className="text-center font-mono text-slate-200">
+                      <div className="text-center font-mono text-slate-700">
                         {isQtyEditingBOM ? (
                           <div className="flex items-center justify-center gap-1">
                             <input
@@ -675,27 +697,27 @@ export default function ComparisonTable({
                               onBlur={handleSaveEditQty}
                               onKeyDown={e => e.key === 'Enter' && handleSaveEditQty()}
                               autoFocus
-                              className="w-10 bg-slate-950 border border-indigo-500 rounded text-center text-xs py-0.5 text-white"
+                              className="w-10 bg-white border border-indigo-500 rounded text-center text-xs py-0.5 text-slate-900"
                             />
                           </div>
                         ) : (
                           <div className="flex items-center justify-center">
                             <button
                               onClick={() => handleDecrementQty(row.id, 'bom')}
-                              className="px-1 text-slate-500 hover:text-white cursor-pointer"
+                              className="px-1 text-slate-400 hover:text-slate-800 cursor-pointer text-xs font-bold"
                             >
                               -
                             </button>
                             <span
                               onClick={() => handleStartEditQty(row.id, 'bom', row.bomQty)}
-                              className="px-2 font-bold cursor-text hover:bg-slate-800 rounded min-w-4 inline-block"
+                              className="px-2 py-0.5 font-bold font-mono text-indigo-800 bg-indigo-50/60 hover:bg-indigo-100 border border-indigo-100 rounded min-w-[28px] inline-block cursor-text text-center text-[11px]"
                               title="Click to edit raw quantity"
                             >
                               {row.bomQty}
                             </span>
                             <button
                               onClick={() => handleIncrementQty(row.id, 'bom')}
-                              className="px-1 text-slate-500 hover:text-white cursor-pointer"
+                              className="px-1 text-slate-400 hover:text-slate-800 cursor-pointer text-xs font-bold"
                             >
                               +
                             </button>
@@ -722,36 +744,40 @@ export default function ComparisonTable({
                         <button
                           onClick={() => handleCopySKU(row.part, row.id)}
                           data-testid="sku-identity-pill"
-                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 border border-white/10 hover:border-slate-400 rounded-lg text-xs font-mono font-medium text-slate-300 hover:text-white transition-all cursor-clipboard group/pill"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 border border-slate-200 hover:bg-slate-200 hover:border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-700 transition-all cursor-clipboard group/pill shadow-2xs"
                         >
-                          <Clipboard className="w-3 h-3 text-slate-500 group-hover/pill:text-indigo-400" />
+                          <Clipboard className="w-3 h-3 text-slate-400 group-hover/pill:text-indigo-600" />
                           <span>{row.part}</span>
                         </button>
                       </div>
 
                       {/* 8. Category Badge */}
                       <div className="text-center flex justify-center">
-                        <span className="px-2.5 py-0.5 bg-indigo-500/5 text-indigo-300 border border-indigo-500/10 font-bold rounded-lg uppercase tracking-wider text-[10px]">
+                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/50 font-bold rounded-lg uppercase tracking-wider text-[10px]">
                           {row.category}
                         </span>
                       </div>
 
                       {/* 9. MSRP Price */}
-                      <div className="text-right font-mono font-bold text-slate-300">
+                      <div className="text-right font-mono font-bold text-slate-700">
                         ${row.price.toLocaleString()}
                       </div>
 
                       {/* 10. Drift value counter */}
                       <div
-                        className={`text-right font-mono font-bold ${
-                          row.drift > 0
-                            ? 'text-amber-400'
-                            : row.drift < 0
-                            ? 'text-emerald-400'
-                            : 'text-slate-400'
-                        }`}
+                        className="text-right font-mono"
                       >
-                        {row.drift > 0 ? `+$${row.drift.toLocaleString()}` : row.drift < 0 ? `-$${Math.abs(row.drift).toLocaleString()}` : '-'}
+                        {row.drift > 0 ? (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-bold text-rose-600 bg-rose-50 border border-rose-100">
+                            +${row.drift.toLocaleString()}
+                          </span>
+                        ) : row.drift < 0 ? (
+                          <span className="inline-block px-1.5 py-0.5 rounded font-bold text-emerald-600 bg-emerald-50 border border-emerald-100">
+                            -${Math.abs(row.drift).toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-medium">$0</span>
+                        )}
                       </div>
 
                       {/* 11. Actions list buttons */}
@@ -759,7 +785,7 @@ export default function ComparisonTable({
                         <button
                           onClick={() => handleDeleteRow(row.id)}
                           title="Purge row spec"
-                          className="p-1 px-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                          className="p-1 px-2 hover:bg-red-500/10 text-slate-500 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

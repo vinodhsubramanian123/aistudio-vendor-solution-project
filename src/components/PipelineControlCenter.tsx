@@ -50,6 +50,13 @@ export default function PipelineControlCenter({
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestCompleted, setIngestCompleted] = useState(false);
 
+  // Separate BOQ vs BOM Ingestion and Automated Scraper States
+  const [boqFileName, setBoqFileName] = useState<string | null>('Primary_Deal_BOQ_v1.1.xlsx');
+  const [bomFileName, setBomFileName] = useState<string | null>(null);
+  const [isPlaywrightRunning, setIsPlaywrightRunning] = useState(false);
+  const [playwrightLogs, setPlaywrightLogs] = useState<string[]>([]);
+  const [playwrightProgress, setPlaywrightProgress] = useState(0);
+
   // Pre-Intelligence Gating Validation state
   const [isAuditingRules, setIsAuditingRules] = useState(false);
   const [ruleAudited, setRuleAudited] = useState(false);
@@ -237,6 +244,118 @@ export default function PipelineControlCenter({
       setActiveStep(2); // Auto advance to Pre-Intelligence
       triggerToast('Merged 3 Excel sheets! Populated 4 active specification rows with physical attributes.');
     }, 1800);
+  };
+
+  // Run Playwright headless automation simulated scrape of the vendor configurator portal
+  const handleRunPlaywrightSimulation = () => {
+    setIsPlaywrightRunning(true);
+    setPlaywrightProgress(0);
+    setPlaywrightLogs(["🤖 [PLAYWRIGHT] Initializing headless chromium virtual worker..."]);
+    
+    setTimeout(() => {
+      setPlaywrightProgress(20);
+      setPlaywrightLogs(prev => [
+        ...prev, 
+        "🔐 [PLAYWRIGHT] Spawning remote browser page with secure configuration cookies...", 
+        "🔑 [PLAYWRIGHT] Authenticated successfully on corporate partner portal under user: vinodhsubramanian@gmail.com"
+      ]);
+    }, 800);
+
+    setTimeout(() => {
+      setPlaywrightProgress(50);
+      setPlaywrightLogs(prev => [
+        ...prev, 
+        "🔍 [PLAYWRIGHT] Target identified: active server basket configurator UID: 'BASKET-2026-X8'...", 
+        "🛠️ [PLAYWRIGHT] Extracting dynamic product tree, verifying PCIe riser channel requirements, and reading MSRP ledger keys..."
+      ]);
+    }, 1600);
+
+    setTimeout(() => {
+      setPlaywrightProgress(85);
+      setPlaywrightLogs(prev => [
+        ...prev, 
+        "📥 [PLAYWRIGHT] Siphoning complete spec data. Compiling official manufacturer spreadsheet...", 
+        "💾 [PLAYWRIGHT] Document generated and downloaded: SECURE_PORTAL_BOM_REVISION_v3.xlsx (120 KB)"
+      ]);
+      setBomFileName('SECURE_PORTAL_BOM_REVISION_v3.xlsx');
+    }, 2400);
+
+    setTimeout(() => {
+      setPlaywrightProgress(100);
+      setIsPlaywrightRunning(false);
+      setPlaywrightLogs(prev => [...prev, "🎯 [PLAYWRIGHT] Success! Scraped BOM integrated into active Compare matrix. Ready for reconciliation."]);
+      
+      const simulatedRows: DiffRow[] = [
+        {
+          id: 'ING-01',
+          part: 'P50465-B21',
+          partKey: 'P50465B21',
+          boqQty: 2,
+          bomQty: 2,
+          boqDesc: 'Intel Xeon Scalable Gold 6430 32-Core Processor',
+          bomDesc: 'Intel Xeon-G 6430 Processor Option',
+          category: 'PROCESSOR',
+          config: activeTab !== 'GLOBAL' ? activeTab : 'ALPHA-888',
+          status: 'MATCHED',
+          price: 7400,
+          drift: 0,
+          reasoning: 'Ingested from Base Compute Profile sheet. Processor matched.',
+          capabilities: ['32-Cores', '2.1GHz Baseline']
+        },
+        {
+          id: 'ING-02',
+          part: 'P43328-B21',
+          partKey: 'P43328B21',
+          boqQty: 16,
+          bomQty: 12,
+          boqDesc: 'HPE 64GB Quad-Rank Registered RDIMM Modules',
+          bomDesc: 'HPE 64GB RDIMM Smart Memory Kit',
+          category: 'MEMORY',
+          config: activeTab !== 'GLOBAL' ? activeTab : 'ALPHA-888',
+          status: 'QTY_MISMATCH',
+          price: 850,
+          drift: -3400,
+          reasoning: 'Ingested from Memory Expansion Tab. Quantity deficit detected (-4 RDIMMs). Socket rules require balanced channels.',
+          capabilities: ['DDR5', 'Registered RDIMM']
+        },
+        {
+          id: 'ING-03',
+          part: 'P49049-B21',
+          partKey: 'P49049B21',
+          boqQty: 4,
+          bomQty: 6,
+          boqDesc: 'Read-Intensive enterprise NVMe SSD 1.92TB',
+          bomDesc: 'HPE 1.92TB Gen5 SFF BC SSD Drive',
+          category: 'NVME_DRIVE',
+          config: activeTab !== 'GLOBAL' ? activeTab : 'ALPHA-888',
+          status: 'QTY_MISMATCH',
+          price: 450,
+          drift: 900,
+          reasoning: 'Ingested from NVMe Storage Matrix. Dynamic excess detected (+2 SSD spares).',
+          capabilities: ['PCIe Gen5', 'SFF BC Form']
+        },
+        {
+          id: 'ING-04',
+          part: '865438-B21',
+          partKey: '865438B21',
+          boqQty: 2,
+          bomQty: 2,
+          boqDesc: 'Standard Flexible Slot 800W Platinum Power Supply',
+          bomDesc: 'HPE 800W FS Platinum Hot-Plug PSU',
+          category: 'POWER',
+          config: activeTab !== 'GLOBAL' ? activeTab : 'ALPHA-888',
+          status: 'MATCHED',
+          price: 490,
+          drift: 0,
+          reasoning: 'Merged successfully. Redundant pairing configured.',
+          capabilities: ['800W Hot-plug', '94% Efficiency']
+        }
+      ];
+
+      onRowsUpdate(simulatedRows);
+      setIngestCompleted(true);
+      triggerToast('Scraped manufacturer BOM safely integrated with Client BOQ requirements!');
+    }, 3200);
   };
 
   // Run Pre-intelligence simulation audits
@@ -493,74 +612,215 @@ export default function PipelineControlCenter({
 
       {/* 3. Selected Active Stage Controller Area */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm min-h-[290px] flex flex-col justify-between">
-        
-        {/* PHASE 1: Excel Spreadsheets Multi Ingestion */}
         {activeStep === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-            <div className="flex flex-col gap-4 text-left">
-              <div>
-                <span className="text-[10px] font-mono font-black tracking-widest text-indigo-605 uppercase">Phase 01 — file ingestion systems</span>
-                <h3 className="font-bold text-slate-900 text-sm mt-1 uppercase">Multi-Sheet Raw Spreadsheet Consolidation</h3>
-                <p className="text-xs text-slate-500 mt-2.5 leading-relaxed">
-                  Real enterprise bills of materials (BOQs) frequently come fragmented as secondary tabs ("Base Blades", "SAN Controllers", "Fibre Accessory Kits") within a master spreadsheet. Our core ingestion engine merges these rows dynamically using logical hardware hierarchies.
-                </p>
+          <div className="flex flex-col gap-6">
+            <div className="border-b border-slice-100 pb-4 text-left">
+              <span className="text-[10px] font-mono font-black tracking-widest text-indigo-605 uppercase">Phase 01 — Dual-Channel File Ingestion System</span>
+              <h3 className="font-bold text-slate-900 text-sm mt-1 uppercase">Clarity of Separate Inputs: BOQ Upload vs. Playwright BOM Extraction</h3>
+              <p className="text-xs text-slate-505 mt-2 leading-relaxed">
+                A secure comparison requires loading two distinct sources: the customer's requested <strong>Bill of Quantities (BOQ)</strong> file and the server manufacturer's official <strong>Bill of Materials (BOM)</strong>. Since retrieving the live BOM requires logging into locked distributor portals, you can upload a local BOM spreadsheet or run our automated service to extract it directly.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Client BOQ Input */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between text-left relative gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-mono font-black bg-teal-50 border border-teal-200 text-teal-700 uppercase">
+                      🗳️ Client Request (BOQ)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Channel 01</span>
+                  </div>
+
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">1. Customer Bill of Quantities Spreadsheet</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Upload the raw physical requirements, multi-sheet procurement specifications, or hardware lists designated directly by the customer's architects.
+                  </p>
+
+                  <div className="bg-white border rounded-xl p-3.5 flex items-center justify-between shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <FileSpreadsheet className="w-5 h-5" />
+                      </span>
+                      <div className="text-left">
+                        <span className="text-xs font-semibold text-slate-800 block truncate max-w-[190px]">
+                          {boqFileName || "No BOQ Sheet selected"}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-mono">
+                          {boqFileName ? "Excel Workbook • 12 KB • Uploaded" : "Drag and drop or click below"}
+                        </span>
+                      </div>
+                    </div>
+                    {boqFileName ? (
+                      <button 
+                        onClick={() => { setBoqFileName(null); triggerToast("Cleared BOQ."); }}
+                        className="text-slate-400 hover:text-slate-600 font-bold font-mono text-xs cursor-pointer p-1"
+                      >
+                        Clear
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => { setBoqFileName("Client_Req_BOQ_Gen12.xlsx"); triggerToast("Loaded BOQ."); }}
+                        className="text-indigo-600 hover:text-indigo-700 font-bold font-mono text-xs cursor-pointer bg-indigo-50 px-2.5 py-1 rounded"
+                      >
+                        Upload
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Multi Tab Sheet Selector checklist representation */}
+                  {boqFileName && (
+                    <div className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col gap-2 shadow-2xs">
+                      <span className="text-[9px] font-mono font-bold uppercase text-slate-400 tracking-wider">Identified Excel Tabs/Sheets:</span>
+                      <div className="flex flex-col gap-1.5 select-none text-[11px]">
+                        {ingestedSheets.map((sheet, index) => (
+                          <label key={sheet.name} className="flex items-center gap-2 cursor-pointer hover:text-slate-900 font-semibold text-slate-600 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={sheet.selected}
+                              onChange={() => {
+                                const updated = [...ingestedSheets];
+                                updated[index].selected = !updated[index].selected;
+                                setIngestedSheets(updated);
+                              }}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-0 w-3.5 h-3.5"
+                            />
+                            <span>{sheet.name}</span>
+                            <span className="text-[9px] font-mono font-bold bg-slate-100 text-slate-500 px-1 py-0.5 rounded ml-auto">
+                              {sheet.rowsCount} parts
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 text-slate-400 text-[10px] italic">
+                  * Real-time fuzzy alignment automatically matches these user sheets during analysis.
+                </div>
               </div>
 
-              {/* Multi Tab Sheet Selector checklist representation */}
-              <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl flex flex-col gap-2.5">
-                <span className="text-[9px] font-mono font-bold uppercase text-slate-450 tracking-wider">Identified Sheets within Excel:</span>
-                <div className="flex flex-col gap-1.5 select-none">
-                  {ingestedSheets.map((sheet, index) => (
-                    <label key={sheet.name} className="flex items-center gap-2.5 cursor-pointer hover:text-slate-900 text-xs font-semibold text-slate-655 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={sheet.selected}
-                        onChange={() => {
-                          const updated = [...ingestedSheets];
-                          updated[index].selected = !updated[index].selected;
-                          setIngestedSheets(updated);
-                        }}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-0 w-3.5 h-3.5"
-                      />
-                      <span>{sheet.name}</span>
-                      <span className="text-[9px] font-mono font-bold bg-slate-200/60 text-slate-500 px-1.5 py-0.5 rounded-sm ml-auto">
-                        {sheet.rowsCount} spec lines
+              {/* Right Column: Portal BOM Input */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between text-left relative gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono font-black bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase">
+                      ⚙️ Manufacturer Portal (BOM)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Channel 02</span>
+                  </div>
+
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">2. Official Manufacturing Configurator BOM</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Retrieve the official HPE/Dell configuration specification. You can drag and drop a pre-downloaded XLSX files, or test our <strong>Playwright web crawler routine</strong> to log in and extract it automatically.
+                  </p>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
+                        <FileSpreadsheet className="w-5 h-5 text-indigo-500" />
                       </span>
-                    </label>
-                  ))}
+                      <div className="text-left">
+                        <span className="text-xs font-semibold text-slate-800 block truncate max-w-[190px]">
+                          {bomFileName || "Waiting for BOM Extract"}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block font-mono">
+                          {bomFileName ? "Web Extracted XLS • 120 KB" : "Click below to auto-fetch via Scraper"}
+                        </span>
+                      </div>
+                    </div>
+                    {bomFileName && (
+                      <button 
+                        onClick={() => { setBomFileName(null); triggerToast("BOM removed."); }}
+                        className="text-slate-400 hover:text-slate-600 font-bold font-mono text-xs cursor-pointer p-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Playwright Headless Terminal Simulator */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider">Playwright Scraping Actions Panel:</span>
+                    {isPlaywrightRunning ? (
+                      <div className="bg-slate-950 text-indigo-300 p-3.5 rounded-xl font-mono text-[9px] flex flex-col gap-1 shadow-inner h-28 overflow-y-auto border border-slate-900 select-text">
+                        <div className="flex items-center justify-between text-[10px] text-white border-b border-slate-900 pb-1 mb-1 font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-yellow-450 rounded-full animate-ping" />
+                            Scraper Status: {playwrightProgress}% Complete
+                          </span>
+                          <span>Chromium Headless DBV</span>
+                        </div>
+                        {playwrightLogs.map((log, lIdx) => (
+                          <div key={lIdx} className="leading-tight text-indigo-250 italic font-mono">{log}</div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={handleRunPlaywrightSimulation}
+                          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-semibold text-[10px] rounded-lg tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-sm uppercase transition-transform active:scale-[0.99]"
+                        >
+                          <Play className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                          <span>Run Headless Playwright Portal Automation</span>
+                        </button>
+                        <p className="text-[10px] text-slate-400 text-center">
+                          Playwright automatically loads configuration options, matching chassis limits, memory slots, and imports standard SKUs.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 text-slate-400 text-[10px]">
+                  {bomFileName ? (
+                    <span className="text-emerald-600 font-bold flex items-center gap-1 leading-none uppercase">
+                      <Check className="w-3 h-3 text-emerald-500" /> BOM channel loaded!
+                    </span>
+                  ) : (
+                    <span>* Requires Playwright extraction or manual XLSX drops.</span>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Simulated Drag & Drop Input Form box */}
-            <div className="border border-dashed border-indigo-250 bg-indigo-50/10 rounded-2xl p-10 flex flex-col items-center justify-center text-center gap-3 relative overflow-hidden">
-              <UploadCloud className="w-12 h-12 text-indigo-650 animate-bounce" />
-              <div className="leading-tight">
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider font-mono">Consolidating Deal Source Artifacts</h4>
-                <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
-                  Drag and drop primary client specifications (Excel, CSV, JSON payload) here, or execute sandbox simulator modeling.
-                </p>
-              </div>
-
-              {isIngesting ? (
-                <div className="flex items-center gap-2 text-xs font-mono font-bold text-indigo-650 mt-4 animate-pulse">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>DEALING PARSING AGENTS RUNNING...</span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleSimulateMultiSheetIngest}
-                  className="mt-4 px-6 py-2 bg-slate-900 hover:bg-slate-800 border text-white hover:scale-101 text-xs font-bold rounded-lg cursor-pointer transition-transform shadow-xs"
-                >
-                  Simulate Multi-Sheet Ingestion
-                </button>
-              )}
-
-              {ingestCompleted && (
-                <span className="text-[10px] font-mono font-bold uppercase text-emerald-600 mt-2 block animate-pulse">
-                  Success: Ingested & resolved 10 composite raw lines.
+            {/* Ingestion triggers and indicators summary line */}
+            <div className="bg-indigo-50/20 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 text-left">
+              <div className="text-left">
+                <span className="text-xs font-bold text-slate-900 uppercase font-mono block">Data Ingestion Status</span>
+                <span className="text-[11px] text-slate-500 mt-0.5 block">
+                  {ingestCompleted 
+                    ? "Both Spec Sheets loaded in memory. Ready to proceed to Pre-Intelligence security checks!"
+                    : "Upload BOQ and execute Playwright remote worker extraction to proceed."
+                  }
                 </span>
-              )}
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => {
+                    setBoqFileName("Client_Req_BOQ_Gen12.xlsx");
+                    setBomFileName("SECURE_PORTAL_BOM_REVISION_v3.xlsx");
+                    handleSimulateMultiSheetIngest();
+                  }}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3 text-indigo-400" />
+                  <span>Interactive Hybrid Simulation (All Sheets)</span>
+                </button>
+
+                {ingestCompleted && (
+                  <button
+                    onClick={() => setActiveStep(2)}
+                    className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 transition-transform"
+                  >
+                    <span>Run Governance Gate Audit</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

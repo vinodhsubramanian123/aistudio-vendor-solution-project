@@ -10,19 +10,21 @@ import { Cpu, Server, Layers, HelpCircle, HardDrive, Shield, Network, ArrowRight
 interface LogicalTreeViewProps {
   rows: DiffRow[];
   onSolveGhost: (rowId: string) => void;
+  activeTab: string;
+  platformName: string;
 }
 
-export default function LogicalTreeView({ rows, onSolveGhost }: LogicalTreeViewProps) {
+export default function LogicalTreeView({ rows, onSolveGhost, activeTab, platformName }: LogicalTreeViewProps) {
   const [capabilitiesMode, setCapabilitiesMode] = useState(false);
 
   // Group items by category to construct a beautiful logical mapping representation
-  const platformName = "HPE ProLiant DL385 Gen11 10DW";
-  const chassisItem = rows.find(r => r.category === 'CHASSIS');
-  const processors = rows.filter(r => r.category === 'PROCESSOR');
-  const memory = rows.filter(r => r.category === 'MEMORY');
-  const slots = rows.filter(r => r.category === 'RISER' || r.category === 'STORAGE_CTRL');
-  const storage = rows.filter(r => r.category === 'STORAGE_DRIVE' || r.category === 'NVME_DRIVE');
-  const powers = rows.filter(r => r.category === 'POWER');
+  const activeRows = rows.filter(r => r.config === activeTab);
+  const chassisItem = activeRows.find(r => r.category === 'CHASSIS');
+  const processors = activeRows.filter(r => r.category === 'PROCESSOR');
+  const memory = activeRows.filter(r => r.category === 'MEMORY');
+  const slots = activeRows.filter(r => r.category === 'RISER' || r.category === 'STORAGE_CTRL');
+  const storage = activeRows.filter(r => r.category === 'STORAGE_DRIVE' || r.category === 'NVME_DRIVE');
+  const powers = activeRows.filter(r => r.category === 'POWER');
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col gap-6 relative overflow-hidden">
